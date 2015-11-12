@@ -7,6 +7,7 @@ void ofApp::setup(){
   gui.setup("GUI");
   gui.add(*tracking.getParameterGroup());
   gui.setPosition(ofPoint(640,0));
+  gui.loadFromFile("settings.xml");
 }
 
 //--------------------------------------------------------------
@@ -27,7 +28,10 @@ void ofApp::keyPressed(int key){
 
 //--------------------------------------------------------------
 void ofApp::keyReleased(int key){
-
+  if(key == 's')
+  {
+    gui.saveToFile("settings.xml");
+  }
 }
 
 //--------------------------------------------------------------

@@ -43,7 +43,7 @@ void KinectTracking::sendOSC()
       sendPoint.y = float(points[a].y/roiRect.width);
       sendPoint.z = 255;
       ofxOscMessage m;
-      m.setAddress("/newPoint");
+      m.setAddress("/newPoint/"+ofToString(a));
       m.addFloatArg(sendPoint.x);
       m.addFloatArg(sendPoint.y);
       m.addFloatArg(sendPoint.z);

@@ -123,6 +123,7 @@ void KinectTracking::orderPoints()
 void KinectTracking::setPoints()
 {
   points.clear();
+  bool secondPointFound = false;
   if(orderedPoints.size()>0)
   {
     ofVec3f point;
@@ -135,17 +136,18 @@ void KinectTracking::setPoints()
     point.z = kinect.getDistanceAt(point.x, point.y);
     int totPoints = orderedPoints.size();
     float distanceFromFirstPoint = orderedPoints[0].distance(point);
-    while(abs(distanceFromFirstPoint) < maxRadius)
+    while(abs(distanceFromFirstPoint) <= maxRadius)
     {
       cont++;
       point = orderedPoints[cont];
       point.z = kinect.getDistanceAt(point.x + roiRect.x, point.y+ roiRect.y);
       distanceFromFirstPoint = orderedPoints[0].distance(point);
+      if(abs(distanceFromFirstPoint) > maxRadius)
+        secondPointFound = true;
     }
-    if(point.x > 0 && point.x < roiRect.width && point.y > 0 && point.y < roiRect.height)
+    if(secondPointFound&&(point.x > 0 && point.x < roiRect.width && point.y > 0 && point.y < roiRect.height))
       points.push_back(point);
   }
-
 }
 
 cv::Mat KinectTracking::gerROIImage()

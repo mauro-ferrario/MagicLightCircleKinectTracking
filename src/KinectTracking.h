@@ -46,7 +46,7 @@ public:
   ofParameter<ofVec2f>  roiPos;
   ofParameter<int>      maxPointToSend;
   ofParameter<float>    maxRadius;
-  ofRectangle roiRect;
+  ofRectangle           roiRect;
   vector<ofVec3f>       points;
 
 private:

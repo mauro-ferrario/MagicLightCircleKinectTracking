@@ -27,6 +27,31 @@ KinectTracking::~KinectTracking()
   
 }
 
+void KinectTracking::setupOSC()
+{
+  sender.setup("localhost", 12345);
+}
+
+void KinectTracking::sendOSC()
+{
+  for(int a = 0; a < points.size(); a++)
+  {
+    if(a < maxPointToSend)
+    {
+      ofVec3f sendPoint = points[a];
+      sendPoint.x = float(points[a].x/roiRect.width);
+      sendPoint.y = float(points[a].y/roiRect.width);
+      sendPoint.z = 255;
+      ofxOscMessage m;
+      m.setAddress("/newPoint");
+      m.addFloatArg(sendPoint.x);
+      m.addFloatArg(sendPoint.y);
+      m.addFloatArg(sendPoint.z);
+      sender.sendMessage(m);
+    }
+  }
+}
+
 void KinectTracking::setup()
 {
   kinect.setRegistration(true);
@@ -50,6 +75,7 @@ void KinectTracking::setup()
   kinect.setCameraTiltAngle(angle);
   nearThreshold = 218;
   farThreshold = 157;
+  setupOSC();
 }
 
 void KinectTracking::update()
@@ -76,6 +102,7 @@ void KinectTracking::update()
     orderPoints();
     setPoints();
   }
+  sendOSC();
 }
 
 void KinectTracking::orderPoints()

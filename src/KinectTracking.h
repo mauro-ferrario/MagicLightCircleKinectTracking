@@ -13,6 +13,7 @@
 #include "ofxCv.h"
 #include "ofxOpenCv.h"
 #include "ofxKinect.h"
+#include "ofxOsc.h"
 
 class KinectTracking
 {
@@ -50,8 +51,9 @@ public:
 private:
   void                  orderPoints();
   void                  setPoints();
-//  void                  setupOSC();
-//  void                  sendOSC();
+  void                  setupOSC();
+  void                  sendOSC();
+  ofxOscSender          sender;
 };
 
 #endif /* defined(__MagicLightCircle__KinectTracking__) */

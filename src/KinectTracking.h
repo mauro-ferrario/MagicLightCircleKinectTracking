@@ -36,6 +36,7 @@ public:
   ofParameter<int>      farThreshold;
   ofParameter<float>    minArea;
   ofParameter<float>    maxArea;
+  ofParameter<int>      tiltAngle;
   int                   angle;
   cv::Mat               cam_mat;
   vector<ofVec2f>       orderedPoints;

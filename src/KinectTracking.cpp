@@ -80,6 +80,7 @@ void KinectTracking::setup()
 
 void KinectTracking::update()
 {
+  kinect.setCameraTiltAngle(tiltAngle);
   roiRect.x = roiPos->x;
   roiRect.y = roiPos->y;
   roiRect.width = roiSize->x;
@@ -215,6 +216,7 @@ ofParameterGroup* KinectTracking::getParameterGroup()
     kinectTrackingParams->add(maxArea.set("Max area", 500,0, kinect.width * kinect.height));
     kinectTrackingParams->add(maxRadius.set("Max radius", 200,0, 500));
     kinectTrackingParams->add(maxPointToSend.set("Max point to send", 2,0, 10));
+    kinectTrackingParams->add(tiltAngle.set("Tilt angle", 0,-30, 30));
   }
   return kinectTrackingParams;
 }

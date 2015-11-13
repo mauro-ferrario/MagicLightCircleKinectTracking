@@ -39,8 +39,8 @@ void KinectTracking::sendOSC()
     if(a < maxPointToSend)
     {
       ofVec3f sendPoint = points[a];
-      sendPoint.x = float(points[a].x/roiRect.width);
-      sendPoint.y = float(points[a].y/roiRect.height);
+      sendPoint.x = 1 - float((points[a].x - roiRect.x)/(roiRect.width));
+      sendPoint.y = float((points[a].y - roiRect.y)/(roiRect.height));
       sendPoint.z = 255;
       ofxOscMessage m;
       m.setAddress("/newPoint/"+ofToString(a));
@@ -57,6 +57,7 @@ void KinectTracking::setup()
   kinect.setRegistration(true);
   kinect.init();
   kinect.open();
+  
   if(kinect.isConnected())
   {
     ofLogNotice() << "sensor-emitter dist: " << kinect.getSensorEmitterDistance() << "cm";
@@ -169,8 +170,11 @@ void KinectTracking::exit()
 
 void KinectTracking::draw()
 {
+  ofPushMatrix();
   float width = kinect.width;
   float height = kinect.height;
+  ofTranslate(width,0);
+  ofScale(-1,1);
   ofSetColor(255);
   kinect.drawDepth(0, 0, width, height);
   ofSetColor(255,0,0,100);
@@ -202,6 +206,7 @@ void KinectTracking::draw()
       ofCircle(points[a].x, points[a].y, maxRadius);
   }
   ofPopStyle();
+  ofPopMatrix();
   ofPopMatrix();
 }
 

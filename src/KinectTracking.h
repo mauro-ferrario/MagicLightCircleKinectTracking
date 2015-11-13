@@ -25,7 +25,6 @@ public:
   void                  draw();
   void                  exit();
   cv::Mat               gerROIImage();
-  ofxKinect             kinect;
   ofxCvColorImage       colorImg;
   ofxCvGrayscaleImage   grayImage;
   ofxCvGrayscaleImage   grayImage2;
@@ -55,6 +54,7 @@ private:
   void                  setupOSC();
   void                  sendOSC();
   ofxOscSender          sender;
+  ofxKinect             kinect;
 };
 
 #endif /* defined(__MagicLightCircle__KinectTracking__) */

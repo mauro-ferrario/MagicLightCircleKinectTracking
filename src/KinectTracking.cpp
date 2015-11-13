@@ -88,6 +88,8 @@ void KinectTracking::update()
   roiRect.width = ofClamp(roiRect.width, 0, kinect.width - roiPos->x);
   roiRect.height = ofClamp(roiRect.height, 0, kinect.height - roiPos->y);
   kinect.update();
+  center.x = roiRect.x + (roiRect.width * .5);
+  center.y = roiRect.y + (roiRect.height * .5);
   if(kinect.isFrameNew())
   {
     contourFinder.setMinArea(minArea);
@@ -114,7 +116,7 @@ void KinectTracking::orderPoints()
   {
     for(int i = 0; i < points[a].size(); i++)
     {
-      orderedPoints.push_back(ofVec2f(points[a][i].x,points[a][i].y));
+      orderedPoints.push_back(ofVec2f(points[a][i].x + roiRect.x,points[a][i].y + roiRect.y));
     }
   }
   ofSort(orderedPoints,ordina);
@@ -129,7 +131,7 @@ void KinectTracking::setPoints()
     ofVec3f point;
     point.x = orderedPoints[0].x;
     point.y = orderedPoints[0].y;
-    point.z = kinect.getDistanceAt(point.x + roiRect.x, point.y + roiRect.y);
+    point.z = kinect.getDistanceAt(point.x, point.y);
     points.push_back(point);
     int cont = 1;
     point = orderedPoints[cont];
@@ -140,12 +142,12 @@ void KinectTracking::setPoints()
     {
       cont++;
       point = orderedPoints[cont];
-      point.z = kinect.getDistanceAt(point.x + roiRect.x, point.y+ roiRect.y);
+      point.z = kinect.getDistanceAt(point.x, point.y);
       distanceFromFirstPoint = orderedPoints[0].distance(point);
-      if(abs(distanceFromFirstPoint) > maxRadius)
+      if(abs(distanceFromFirstPoint) > maxRadius&&cont < totPoints)
         secondPointFound = true;
     }
-    if(secondPointFound&&(point.x > 0 && point.x < roiRect.width && point.y > 0 && point.y < roiRect.height))
+    if(secondPointFound&&(point.x > roiRect.x && point.x < roiRect.x + roiRect.width && point.y > roiRect.y && point.y < roiRect.y + roiRect.height))
       points.push_back(point);
   }
 }
@@ -156,8 +158,6 @@ cv::Mat KinectTracking::gerROIImage()
   cam_mat = toCv(grayImage);
   cv::Rect crop_roi = cv::Rect(roiRect.x, roiRect.y, roiRect.width, roiRect.height);
   crop = cam_mat(crop_roi).clone();
-  center.x = roiRect.x + (roiRect.width * .5);
-  center.y = roiRect.y + (roiRect.height * .5);
   return crop;
 }
 
@@ -193,9 +193,13 @@ void KinectTracking::draw()
   ofSetLineWidth(2);
   for(int a = 0; a < points.size(); a++)
   {
-    ofLine(center.x, center.y, points[a].x + roiRect.x, points[a].y+roiRect.y);
+    if(points[a].x > roiRect.x && points[a].x < roiRect.x + roiRect.width && points[a].y > roiRect.y && points[a].y < roiRect.y + roiRect.height)
+    {
+      ofLine(center.x, center.y, points[a].x, points[a].y);
+      ofDrawBitmapString(ofToString(a), points[a].x, points[a].y);
+    }
     if(a < points.size()-1)
-      ofCircle(points[a].x + roiRect.x, points[a].y+roiRect.y, maxRadius);
+      ofCircle(points[a].x, points[a].y, maxRadius);
   }
   ofPopStyle();
   ofPopMatrix();

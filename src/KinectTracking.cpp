@@ -149,7 +149,8 @@ void KinectTracking::setPoints()
         secondPointFound = true;
     }
     if(secondPointFound&&(point.x > roiRect.x && point.x < roiRect.x + roiRect.width && point.y > roiRect.y && point.y < roiRect.y + roiRect.height))
-      points.push_back(point);
+      if(maxPointToSend > 1)
+        points.push_back(point);
   }
 }
 

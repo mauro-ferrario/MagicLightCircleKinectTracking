@@ -205,6 +205,11 @@ void KinectTracking::draw()
     }
     if(a < points.size()-1)
       ofCircle(points[a].x, points[a].y, maxRadius);
+    ofPushStyle();
+    ofSetColor(255,255,0);
+    ofFill();
+    ofCircle(points[a].x, points[a].y, 15);
+    ofPopStyle();
   }
   ofPopStyle();
   ofPopMatrix();

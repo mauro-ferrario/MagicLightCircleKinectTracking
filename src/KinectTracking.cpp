@@ -40,9 +40,19 @@ void KinectTracking::sendOSC()
     if(a < maxPointToSend)
     {
       ofVec3f sendPoint = points[a];
+      // Quando si inviano le coordinate considerando il baricentro, forse bisognerebbe rimappare le coordinate e riportar le coordinate relative al boundingBox della sagoma, nelle proporzioni delle coordinate relative al boundingBox del ROI
       sendPoint.x = 1 - float((points[a].x - roiRect.x)/(roiRect.width));
       sendPoint.y = float((points[a].y - roiRect.y)/(roiRect.height));
-      sendPoint.z =  255;
+      int color;
+#ifdef DRAW_MODE
+      color = drawImage.getColor(points[a].x, points[a].y).r;
+#else
+      // Testare
+      int index = points[a].y * width + points[a].x;
+      color = kinect.getDepthPixels()[index];
+#endif
+//      cout << "COLOR = "  << color << endl;
+      sendPoint.z =  color;
       ofxOscMessage m;
       m.setAddress("/newPoint/"+ofToString(a));
       m.addFloatArg(sendPoint.x);

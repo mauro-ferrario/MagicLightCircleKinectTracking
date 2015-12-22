@@ -30,7 +30,7 @@ public:
   void                  updateDraw();
   void                  updateContourFinder( unsigned char * pixels);
   void                  draw();
-  void                  drawFoundPoints();
+  void                  drawFoundPoints();  
   void                  exit();
   void                  checkBlobPointsFromTheCenter();
   cv::Mat               gerROIImage();

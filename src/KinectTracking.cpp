@@ -11,9 +11,7 @@
 using namespace ofxCv;
 using namespace cv;
 
-
-ofVec2f center;
-ofVec2f centerToConsiderForSorting;
+ofVec2f               centerToConsiderForSorting;
 
 bool ordina(const ofVec2f &a, const ofVec2f &b){
   return a.distance(centerToConsiderForSorting) > b.distance(centerToConsiderForSorting);
@@ -36,6 +34,7 @@ void KinectTracking::setupOSC()
 
 void KinectTracking::sendOSC()
 {
+  cout << "*************" << endl;
   for(int a = 0; a < points.size(); a++)
   {
     if(a < maxPointToSend)
@@ -50,6 +49,7 @@ void KinectTracking::sendOSC()
       m.addFloatArg(sendPoint.y);
       m.addFloatArg(sendPoint.z);
       sender.sendMessage(m);
+      cout << "SEND POINT " << a << endl;
     }
   }
 }
@@ -64,32 +64,13 @@ void KinectTracking::keyReleased(int key)
 
 void KinectTracking::setup()
 {
-#ifdef DRAW_MODE
   width   = 640;
   height  = 480;
-  drawImage.allocate(width, height, OF_IMAGE_COLOR);
-  drawFbo.allocate(width, height);
-  drawFbo.begin();
-  ofClear(0,255);
-  drawFbo.end();
+#ifdef DRAW_MODE
+  setupDrawMode();
 #else
-  kinect.setRegistration(true);
-  kinect.init();
-  kinect.open();
-  
-  if(kinect.isConnected())
-  {
-    ofLogNotice() << "sensor-emitter dist: " << kinect.getSensorEmitterDistance() << "cm";
-    ofLogNotice() << "sensor-camera dist:  " << kinect.getSensorCameraDistance() << "cm";
-    ofLogNotice() << "zero plane pixel size: " << kinect.getZeroPlanePixelSize() << "mm";
-    ofLogNotice() << "zero plane dist: " << kinect.getZeroPlaneDistance() << "mm";
-  }
-  width = kinect.width;
-  height = kinect.height;
-  angle = 0;
-  kinect.setCameraTiltAngle(angle);
+  setupKinect();
 #endif
-  
   colorImg.allocate(width, height);
   grayImage.allocate(width, height);
   grayThreshNear.allocate(width, height);
@@ -102,7 +83,32 @@ void KinectTracking::setup()
   setupOSC();
 }
 
-void KinectTracking::update()
+void KinectTracking::setupDrawMode()
+{
+  drawImage.allocate(width, height, OF_IMAGE_COLOR);
+  drawFbo.allocate(width, height);
+  drawFbo.begin();
+  ofClear(0,255);
+  drawFbo.end();
+}
+
+void KinectTracking::setupKinect()
+{
+  kinect.setRegistration(true);
+  kinect.init();
+  kinect.open();
+  if(kinect.isConnected())
+  {
+    ofLogNotice() << "sensor-emitter dist: " << kinect.getSensorEmitterDistance() << "cm";
+    ofLogNotice() << "sensor-camera dist:  " << kinect.getSensorCameraDistance() << "cm";
+    ofLogNotice() << "zero plane pixel size: " << kinect.getZeroPlanePixelSize() << "mm";
+    ofLogNotice() << "zero plane dist: " << kinect.getZeroPlaneDistance() << "mm";
+  }
+  angle = 0;
+  kinect.setCameraTiltAngle(angle);
+}
+
+void KinectTracking::updateROI()
 {
   roiRect.x = roiPos->x;
   roiRect.y = roiPos->y;
@@ -110,8 +116,13 @@ void KinectTracking::update()
   roiRect.height = roiSize->y;
   roiRect.width = ofClamp(roiRect.width, 0, kinect.width - roiPos->x);
   roiRect.height = ofClamp(roiRect.height, 0, kinect.height - roiPos->y);
-  center.x = roiRect.x + (roiRect.width * .5);
-  center.y = roiRect.y + (roiRect.height * .5);
+  roiCenter.x = roiRect.x + (roiRect.width * .5);
+  roiCenter.y = roiRect.y + (roiRect.height * .5);
+}
+
+void KinectTracking::update()
+{
+  updateROI();
   unsigned char * pixels;
 #ifndef DRAW_MODE
   kinect.setCameraTiltAngle(tiltAngle);
@@ -120,31 +131,12 @@ void KinectTracking::update()
   {
     pixels = kinect.getDepthPixels();
 #else
-    drawFbo.begin();
     if(bDraw)
-    {
-      ofPushStyle();
-      ofFill();
-      ofSetColor(drawGrayValue);
-      ofCircle(ofGetMouseX(), ofGetMouseY(), drawSize);
-      ofPopStyle();
-    }
-    drawFbo.end();
-    drawFbo.readToPixels(drawImage.getPixelsRef());
-    drawImage.update();
-    drawImage.setImageType(OF_IMAGE_GRAYSCALE);
+      updateDraw();
     pixels = drawImage.getPixels();
 #endif
-    contourFinder.setMinArea(minArea);
-    contourFinder.setMaxArea(maxArea);
-    grayImage.setFromPixels(pixels, width, height);
-    grayThreshNear = grayImage;
-    grayThreshFar = grayImage;
-    grayThreshNear.threshold(nearThreshold, true);
-    grayThreshFar.threshold(farThreshold);
-    cvAnd(grayThreshNear.getCvImage(), grayThreshFar.getCvImage(), grayImage.getCvImage(), NULL);
-    grayImage.flagImageChanged();
-    contourFinder.findContours(gerROIImage());
+    updateContourFinder(pixels);
+    points.clear();
     if(contourFinder.getContours().size()>0)
     {
       if(!useCenterNotMaxDistance||bDistanceFromBaricentro)
@@ -154,28 +146,61 @@ void KinectTracking::update()
       }
       else
       {
-        points.clear();
-        int totPointFound = 0;
-        for(int a = 0; a < contourFinder.getContours().size();a++)
-        {
-          if(totPointFound < maxPointToSend)
-          {
-            ofPoint point = ofPoint(contourFinder.getCentroid(a).x, contourFinder.getCentroid(a).y);
-            point.x += roiRect.x;
-            point.y +=  roiRect.y;
-            if(point.distance(center) > roiSize->x * radiusFromCenter)
-            {
-              totPointFound++;
-              points.push_back(point);
-            }
-          }
-        }
+        checkBlobPointsFromTheCenter();
       }
     }
 #ifndef DRAW_MODE
   }
 #endif
-  sendOSC();
+  if(bDistanceFromBaricentro||bDistanceFromCenter)
+    sendOSC();
+}
+
+void KinectTracking::checkBlobPointsFromTheCenter()
+{
+  int totPointFound = 0;
+  for(int a = 0; a < contourFinder.getContours().size();a++)
+  {
+    if(totPointFound < maxPointToSend)
+    {
+      ofPoint point = ofPoint(contourFinder.getCentroid(a).x, contourFinder.getCentroid(a).y);
+      point.x += roiRect.x;
+      point.y +=  roiRect.y;
+      if(point.distance(roiCenter) > roiSize->x * radiusFromCenter)
+      {
+        totPointFound++;
+        points.push_back(point);
+      }
+    }
+  }
+}
+
+void KinectTracking::updateDraw()
+{
+  drawFbo.begin();
+  ofPushStyle();
+  ofFill();
+  ofSetColor(drawGrayValue);
+  ofCircle(ofGetMouseX(), ofGetMouseY(), drawSize);
+  ofPopStyle();
+  drawFbo.end();
+  drawFbo.readToPixels(drawImage.getPixelsRef());
+  drawImage.update();
+  drawImage.setImageType(OF_IMAGE_GRAYSCALE);
+}
+
+void KinectTracking::updateContourFinder( unsigned char * pixels)
+{
+  contourFinder.setMinArea(minArea);
+  contourFinder.setMaxArea(maxArea);
+  grayImage.setFromPixels(pixels, width, height);
+  grayThreshNear = grayImage;
+  grayThreshFar = grayImage;
+  grayThreshNear.threshold(nearThreshold, true);
+  grayThreshFar.threshold(farThreshold);
+  cvAnd(grayThreshNear.getCvImage(), grayThreshFar.getCvImage(), grayImage.getCvImage(), NULL);
+  grayImage.flagImageChanged();
+  contourFinder.findContours(gerROIImage());
 }
 
 void KinectTracking::orderPoints()
@@ -189,7 +214,7 @@ void KinectTracking::orderPoints()
       orderedPoints.push_back(ofVec2f(points[a][i].x + roiRect.x,points[a][i].y + roiRect.y));
     }
   }
-  centerToConsiderForSorting = center;
+  centerToConsiderForSorting = roiCenter;
   if(bDistanceFromBaricentro)
     centerToConsiderForSorting = ofPoint(contourFinder.getCentroid(0).x + roiRect.x, contourFinder.getCentroid(0).y + roiRect.y);
   ofSort(orderedPoints,ordina);
@@ -198,10 +223,9 @@ void KinectTracking::orderPoints()
 void KinectTracking::setPoints()
 {
   // Al momento setta solamente al massimo 2 punti... farlo per anche più punti per utilizzare braccia, gambe, testa, tentacoli....
-  points.clear();
   bool secondPointFound = false;
   // Funziona con un solo blob/sagoma
-  ofPoint centerToConsider = center;
+  ofPoint centerToConsider = roiCenter;
   if(bDistanceFromBaricentro)
     centerToConsider = ofPoint(contourFinder.getCentroid(0).x + roiRect.x, contourFinder.getCentroid(0).y + roiRect.y);
   if(orderedPoints.size()>0)
@@ -209,35 +233,27 @@ void KinectTracking::setPoints()
     ofVec3f point;
     int idMaxDistancePoint = 0;
     float distanceFromCenter;
-    
     int cont = 0;
-    point.x = orderedPoints[cont].x;
-    point.y = orderedPoints[cont].y;
-    point.z = 0; // kinect.getDistanceAt(point.x, point.y);
-    distanceFromCenter = centerToConsider.distance(point);
-    
-    while(distanceFromCenter < roiSize->x * radiusFromCenter)
+    do
     {
-      cont++;
       point.x = orderedPoints[cont].x;
       point.y = orderedPoints[cont].y;
-      point.z = 0; // kinect.getDistanceAt(point.x, point.y);
+      point.z = 0;
       distanceFromCenter = centerToConsider.distance(point);
       if(cont > orderedPoints.size())
         return;
-    }
+      idMaxDistancePoint = cont;
+      cont++;
+    }while(distanceFromCenter < roiSize->x * radiusFromCenter);
     points.push_back(point);
-    idMaxDistancePoint = cont;
-    cont++;
+    
     point = orderedPoints[cont];
-//    point.z = kinect.getDistanceAt(point.x, point.y);
     int totPoints = orderedPoints.size();
     float distanceFromFirstPoint = orderedPoints[idMaxDistancePoint].distance(point);
     while(abs(distanceFromFirstPoint) <= maxRadius)
     {
       cont++;
       point = orderedPoints[cont];
-//      point.z = kinect.getDistanceAt(point.x, point.y);
       distanceFromFirstPoint = orderedPoints[idMaxDistancePoint].distance(point);
       distanceFromCenter = centerToConsider.distance(point);
       if((abs(distanceFromFirstPoint) > maxRadius&&cont < totPoints) && distanceFromCenter > roiSize->x * radiusFromCenter)
@@ -275,7 +291,6 @@ void KinectTracking::draw()
   ofScale(-1,1);
   kinect.drawDepth(0, 0, width, height);
 #else
-//  drawImage.draw(0,0);
   drawFbo.draw(0,0);
 #endif
   ofSetColor(255,0,0,100);
@@ -290,8 +305,6 @@ void KinectTracking::draw()
   ofTranslate(roiRect.x, roiRect.y);
   ofSetColor(255,255,0);
   contourFinder.draw();
-  
-  
   if(bDistanceFromBaricentro)
   {
     ofPushStyle();
@@ -302,41 +315,31 @@ void KinectTracking::draw()
       ofCircle(contourFinder.getCentroid(a).x, contourFinder.getCentroid(a).y,10);
       ofNoFill();
       ofCircle(contourFinder.getCentroid(a).x, contourFinder.getCentroid(a).y, radiusFromCenter * roiSize->x);
-//      ofCircle(contourFinder.getCenter(a).x, contourFinder.getCenter(a).y,10);
-    }
-    ofPopStyle();
-  }
-  
-  if(bDistanceFromBaricentro)
-  {
-    ofPushStyle();
-    ofSetColor(255,0,0);
-    for(int a = 0; a < contourFinder.getContours().size(); a++)
-    {
       ofPoint contourCenter = ofPoint(contourFinder.getCenter(a).x,contourFinder.getCenter(a).y);
+      ofSetColor(255,0,0);
       ofCircle(contourCenter,10);
     }
     ofPopStyle();
   }
-  
   ofPopMatrix();
-  ofPushStyle();
   ofSetColor(255,0,0);
   ofRect(roiRect.x,roiRect.y,roiRect.width, roiRect.height);
-  
-  
-  
   if(bDistanceFromCenter)
   {
-    ofCircle(center, 10);
-    ofCircle(center, radiusFromCenter * roiSize->x);
+    ofCircle(roiCenter, 10);
+    ofCircle(roiCenter, radiusFromCenter * roiSize->x);
   }
-  
-  ofPoint centerToConsider = center;
+  if(bDistanceFromBaricentro||bDistanceFromCenter)
+    drawFoundPoints();
+  ofPopMatrix();
+  ofPopMatrix();
+}
+
+void KinectTracking::drawFoundPoints()
+{
+  ofPoint centerToConsider = roiCenter;
   if(bDistanceFromBaricentro&&contourFinder.getContours().size()>0)
-  {
     centerToConsider = ofPoint(contourFinder.getCentroid(0).x + roiRect.x, contourFinder.getCentroid(0).y + roiRect.y);
-  }
   ofSetLineWidth(2);
   for(int a = 0; a < points.size(); a++)
   {
@@ -353,9 +356,6 @@ void KinectTracking::draw()
     ofCircle(points[a].x, points[a].y, 15);
     ofPopStyle();
   }
-  ofPopStyle();
-  ofPopMatrix();
-  ofPopMatrix();
 }
 
 ofParameterGroup* KinectTracking::getParameterGroup()

@@ -23,9 +23,16 @@ public:
                         KinectTracking();
                         ~KinectTracking();
   void                  setup();
+  void                  setupKinect();
+  void                  setupDrawMode();
   void                  update();
+  void                  updateROI();
+  void                  updateDraw();
+  void                  updateContourFinder( unsigned char * pixels);
   void                  draw();
+  void                  drawFoundPoints();
   void                  exit();
+  void                  checkBlobPointsFromTheCenter();
   cv::Mat               gerROIImage();
   ofxCvColorImage       colorImg;
   ofxCvGrayscaleImage   grayImage;
@@ -61,6 +68,7 @@ public:
   ofImage               drawImage;
   ofFbo                 drawFbo;
   void                  keyReleased(int key);
+  ofVec2f               roiCenter;
 
 private:
   void                  orderPoints();

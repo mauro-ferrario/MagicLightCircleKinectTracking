@@ -9,6 +9,8 @@
 #ifndef __MagicLightCircle__KinectTracking__
 #define __MagicLightCircle__KinectTracking__
 
+#define DRAW_MODE
+
 #include "ofMain.h"
 #include "ofxCv.h"
 #include "ofxOpenCv.h"
@@ -45,8 +47,20 @@ public:
   ofParameter<ofVec2f>  roiPos;
   ofParameter<int>      maxPointToSend;
   ofParameter<float>    maxRadius;
+  ofParameter<float>    radiusFromCenter;
+  ofParameter<bool>     bDraw;
+  ofParameter<int>      drawGrayValue;
+  ofParameter<int>      drawSize;
+  ofParameter<bool>     bDistanceFromCenter;
+  ofParameter<bool>     bDistanceFromBaricentro;
+  ofParameter<bool>     useCenterNotMaxDistance;
   ofRectangle           roiRect;
   vector<ofVec3f>       points;
+  int                   width;
+  int                   height;
+  ofImage               drawImage;
+  ofFbo                 drawFbo;
+  void                  keyReleased(int key);
 
 private:
   void                  orderPoints();

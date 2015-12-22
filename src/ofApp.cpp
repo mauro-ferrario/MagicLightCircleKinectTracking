@@ -32,6 +32,7 @@ void ofApp::keyReleased(int key){
   {
     gui.saveToFile("settings.xml");
   }
+  tracking.keyReleased(key);
 }
 
 //--------------------------------------------------------------
